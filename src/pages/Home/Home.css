@@ -1,0 +1,51 @@
+.home {
+  position: relative;
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 48px 16px;
+}
+
+.home__scene {
+  position: absolute;
+  inset: 0;
+}
+
+/* Fuori dallo schermo, ma raggiungibile col Tab: allora compare in basso */
+.home__list--a11y {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 24px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.home__list--a11y:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.home__list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home__list button {
+  font: inherit;
+  color: var(--text-h);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.home__list button:hover {
+  border-color: var(--accent);
+}

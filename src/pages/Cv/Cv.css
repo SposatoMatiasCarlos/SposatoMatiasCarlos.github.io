@@ -1,0 +1,10 @@
+.cv {
+  max-width: 800px;
+  margin: 0 auto;
+  /* in alto lascia spazio al pulsante "indietro" */
+  padding: 72px 16px 32px;
+}
+
+.cv h1 {
+  color: var(--text-h);
+}

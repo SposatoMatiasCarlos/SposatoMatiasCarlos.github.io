@@ -1,0 +1,25 @@
+:root {
+  --text: #a1a1aa;
+  --text-h: #f4f4f5;
+  --bg: #09090b;
+  --surface: #18181b;
+  --border: #27272a;
+  --accent: #5f5bf2;
+
+  font: 16px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: dark;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}

@@ -1,0 +1,19 @@
+.error-boundary {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 88px 16px 32px;
+}
+
+.error-boundary h1 {
+  color: var(--text-h);
+  font-size: 1.4rem;
+}
+
+.error-boundary pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
