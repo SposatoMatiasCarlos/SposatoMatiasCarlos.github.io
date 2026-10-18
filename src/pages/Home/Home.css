@@ -1,4 +1,7 @@
 .home {
+  /* Home nera e minimale, con l'azzurro macOS come unico accento */
+  --accent: #0a84ff;
+  background: #000000;
   position: relative;
   flex: 1;
   display: grid;

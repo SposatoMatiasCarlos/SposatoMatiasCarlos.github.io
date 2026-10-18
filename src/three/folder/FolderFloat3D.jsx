@@ -9,31 +9,35 @@ import { folderBack, pill, roundedRect } from './shapes.js';
 // le note escono a molla, restando a fluttuare sopra di essa.
 // Da usare dentro <Scene>.
 
-// Misure in unità three.js (≈ px dell'originale / 100)
-const W = 2;
-const H = 1.48;
-const R = 0.14;
-const TAB = 0.14;
-const PILL_H = 0.34;
-const FONT = 0.15;
-const GAP = 0.12;
-const ROW = 0.52;
-const LIFT = 0.12;
+// Misure in unità three.js: cartella piccola stile macOS, note a grandezza piena
+const W = 0.82;
+const H = 0.6;
+const R = 0.06;
+const TAB = 0.08;
+const PILL_H = 0.3;
+const FONT = 0.13;
+const GAP = 0.1;
+const ROW = 0.44;
+const LIFT = 0.16;
 const TILT = MathUtils.degToRad(8);
 const BACK_ANGLE = MathUtils.degToRad(-8);
 const REST_ANGLE = MathUtils.degToRad(16);
 const OPEN_ANGLE = MathUtils.degToRad(34);
+const LABEL_Y = -0.14;
+const LABEL_SIZE = 0.12;
+const CENTER_Y = (H + TAB + LABEL_Y - LABEL_SIZE) / 2; // centro verticale di cartella + etichetta
 const STAGGER = 0.045;
 const CLOSE_DELAY = 150; // ms prima di chiudere quando il mouse esce
 
+// Azzurro delle cartelle di macOS (materiali senza tone mapping, che lo spegnerebbe)
 const COLORS = {
-  back: '#065f46',
-  front: '#059669',
+  back: '#2b93e0',
+  front: '#6ccbff',
   paper: '#f5f5f5',
   item: '#f5f5f5',
-  itemHover: '#5f5bf2',
-  ink: '#18181b',
-  inkHover: '#f4f4f5',
+  itemHover: '#0a84ff',
+  ink: '#111111',
+  inkHover: '#ffffff',
   label: '#f5f5f5',
 };
 
@@ -165,7 +169,7 @@ function Note({ item, index, count, target, state, reduce, onSelect, setHovering
   );
 }
 
-function FolderFloat3D({ items, label = 'Progetti', sublabel, onSelect }) {
+function FolderFloat3D({ items, label = 'progetti', onSelect }) {
   const viewport = useThree(s => s.viewport);
   const [open, setOpenState] = useState(false);
   const [hovering, setHovering] = useState(false);
@@ -183,7 +187,6 @@ function FolderFloat3D({ items, label = 'Progetti', sublabel, onSelect }) {
   const scale = Math.min(1, viewport.width / 4.6);
   const spread = Math.min(1.9, (viewport.width / scale) / 2 - 0.3);
   const { pos, rows } = useMemo(() => layout(items, spread), [items, spread]);
-  const sub = sublabel ?? `${items.length} ${items.length === 1 ? 'progetto' : 'progetti'}`;
 
   const backGeo = useMemo(() => folderBack(W, H, R, TAB), []);
   const frontGeo = useMemo(() => roundedRect(W, H * 0.76, R), []);
@@ -240,7 +243,8 @@ function FolderFloat3D({ items, label = 'Progetti', sublabel, onSelect }) {
       <directionalLight position={[2, 4, 5]} intensity={2.2} />
       <directionalLight position={[-3, 1, 2]} intensity={0.5} />
 
-      <group position={[0, -1.2 * scale, 0]} scale={scale}>
+      {/* Cartella + etichetta centrate sullo schermo */}
+      <group position={[0, -CENTER_Y * scale, 0]} scale={scale}>
         <group ref={root} {...hoverHandlers} onPointerMissed={() => setOpen(false)}>
           {/* Zona invisibile sopra la cartella: tiene aperto mentre il mouse va verso le note */}
           {open && (
@@ -259,38 +263,23 @@ function FolderFloat3D({ items, label = 'Progetti', sublabel, onSelect }) {
             onPointerOut={() => setHovering(false)}
           >
             <mesh geometry={backGeo} rotation-x={BACK_ANGLE}>
-              <meshStandardMaterial color={COLORS.back} roughness={0.7} />
+              <meshStandardMaterial color={COLORS.back} roughness={0.7} toneMapped={false} />
             </mesh>
 
-            <mesh ref={paper} position={[0, H * 0.45, 0.06]} rotation-x={BACK_ANGLE}>
+            <mesh ref={paper} position={[0, H * 0.45, 0.03]} rotation-x={BACK_ANGLE}>
               <boxGeometry args={[W * 0.84, H * 0.5, 0.01]} />
               <meshStandardMaterial color={COLORS.paper} roughness={0.9} />
             </mesh>
 
-            <group ref={front} position-z={0.14} rotation-x={REST_ANGLE}>
+            <group ref={front} position-z={0.07} rotation-x={REST_ANGLE}>
               <mesh geometry={frontGeo}>
-                <meshStandardMaterial color={COLORS.front} roughness={0.55} />
+                <meshStandardMaterial color={COLORS.front} roughness={0.55} toneMapped={false} />
               </mesh>
-              <Text
-                position={[-W / 2 + 0.16, 0.36, 0.045]}
-                fontSize={0.13}
-                color={COLORS.label}
-                anchorX="left"
-                anchorY="bottom"
-              >
-                {label}
-              </Text>
-              <Text
-                position={[-W / 2 + 0.16, 0.16, 0.045]}
-                fontSize={0.11}
-                color={COLORS.label}
-                fillOpacity={0.55}
-                anchorX="left"
-                anchorY="bottom"
-              >
-                {sub}
-              </Text>
             </group>
+
+            <Text position={[0, LABEL_Y, 0.1]} fontSize={LABEL_SIZE} color={COLORS.label} anchorX="center" anchorY="top">
+              {label}
+            </Text>
           </group>
 
           {items.map((item, i) => (

@@ -1,4 +1,6 @@
 import { lazy, Suspense } from 'react';
+import AsciiField from '../../components/AsciiField/AsciiField.jsx';
+import { background } from '../../data/background.js';
 import { projects } from '../../data/projects.js';
 import './Home.css';
 
@@ -22,6 +24,8 @@ function ProjectList({ setPage, className = '' }) {
 function Home({ setPage }) {
   return (
     <main className="home">
+      {/* Sfondo in tipografia ASCII: per cambiarlo vedi src/data/background.js */}
+      <AsciiField {...background} />
       <Suspense fallback={<ProjectList setPage={setPage} />}>
         <HomeScene projects={projects} setPage={setPage} />
         {/* Per tastiera e screen reader: nascosta finché non riceve il focus */}

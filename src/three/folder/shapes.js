@@ -34,8 +34,8 @@ export function folderBack(w, h, r, tab) {
   s.quadraticCurveTo(w / 2, 0, w / 2, r);
   s.lineTo(w / 2, h - r);
   s.quadraticCurveTo(w / 2, h, w / 2 - r, h);
-  s.lineTo(tabRight + 0.12, h);
-  s.bezierCurveTo(tabRight + 0.04, h, tabRight + 0.04, h + tab, tabRight - 0.06, h + tab);
+  s.lineTo(tabRight + tab * 0.86, h);
+  s.bezierCurveTo(tabRight + tab * 0.29, h, tabRight + tab * 0.29, h + tab, tabRight - tab * 0.43, h + tab);
   s.lineTo(-w / 2 + r, h + tab);
   s.quadraticCurveTo(-w / 2, h + tab, -w / 2, h + tab - r);
   s.lineTo(-w / 2, r);
