@@ -10,10 +10,10 @@ import { folderBack, pill, roundedRect } from './shapes.js';
 // Da usare dentro <Scene>.
 
 // Misure in unità three.js: cartella piccola stile macOS, note a grandezza piena
-const W = 0.82;
-const H = 0.6;
-const R = 0.06;
-const TAB = 0.08;
+const W = 0.7;
+const H = 0.51;
+const R = 0.05;
+const TAB = 0.07;
 const PILL_H = 0.3;
 const FONT = 0.13;
 const GAP = 0.1;
@@ -23,8 +23,8 @@ const TILT = MathUtils.degToRad(8);
 const BACK_ANGLE = MathUtils.degToRad(-8);
 const REST_ANGLE = MathUtils.degToRad(16);
 const OPEN_ANGLE = MathUtils.degToRad(34);
-const LABEL_Y = -0.14;
-const LABEL_SIZE = 0.12;
+const LABEL_Y = -0.12;
+const LABEL_SIZE = 0.11;
 const CENTER_Y = (H + TAB + LABEL_Y - LABEL_SIZE) / 2; // centro verticale di cartella + etichetta
 const STAGGER = 0.045;
 const CLOSE_DELAY = 150; // ms prima di chiudere quando il mouse esce
@@ -183,8 +183,8 @@ function FolderFloat3D({ items, label = 'progetti', onSelect }) {
 
   const reduce = useMemo(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches, []);
 
-  // Su schermi stretti rimpicciolisce tutto e stringe le righe di note
-  const scale = Math.min(1, viewport.width / 4.6);
+  // Su schermi stretti rimpicciolisce tutto (ma non troppo) e stringe le righe di note
+  const scale = Math.min(1, viewport.width / 3.2);
   const spread = Math.min(1.9, (viewport.width / scale) / 2 - 0.3);
   const { pos, rows } = useMemo(() => layout(items, spread), [items, spread]);
 

@@ -6,14 +6,17 @@ import './AsciiField.css';
 // - comparsa a decodifica: i caratteri girano a caso e poi si fermano, dai bordi verso il centro
 // - le parti vicine al centro si allungano verso di esso a scatti di griglia (le dita che si cercano)
 // - i caratteri cambiano peso seguendo un'onda lenta, con qualche glitch sparso
-// - vicino al mouse i caratteri si rimescolano e diventano del colore d'accento
+// - vicino al mouse (o al dito) i caratteri si rimescolano e diventano del colore d'accento
 // Ai bordi orizzontali (pieno solo sopra o solo sotto) usa caratteri alti o bassi,
 // così i contorni sottili come le dita restano leggibili dentro la singola cella.
+// Su schermi verticali l'immagine ruota di 90°: le due metà arrivano dall'alto e dal basso.
 // L'immagine è solo una maschera: si può cambiare senza toccare l'animazione.
 
-const MIN_WIDTH = 760; // sotto questa larghezza l'immagine esce dai lati invece di rimpicciolire
+const MIN_WIDTH = 760; // in orizzontale, sotto questa larghezza l'immagine esce dai lati
+const MIN_CELL = 4.5; // px: su schermi piccoli meno colonne, perché i caratteri restino leggibili
+const CHAR_RATIO = 1.8; // altezza / larghezza di una cella
 const THRESHOLD = 0.06; // luminosità minima perché una cella abbia un carattere
-const REACH_COLS = 3; // di quante colonne si allungano le dita
+const REACH = 3; // di quante celle si allungano le dita
 const REACH_PERIOD = 6; // secondi per un ciclo avanti/indietro
 const POINTER_R = 80; // raggio d'azione del mouse in px
 const DECODE = 0.55; // secondi in cui ogni carattere gira prima di fermarsi
@@ -30,13 +33,20 @@ const hash = (i, j, t = 0) => {
 
 // Legge l'immagine ridotta a cols × (rows × 2): ogni cella ha una metà alta e una bassa.
 // values = luminosità della cella, edge = 1 se piena solo sopra, -1 solo sotto, 0 altrimenti
-function sample(img, cols, rows) {
+function sample(img, cols, rows, rotate) {
   const c = document.createElement('canvas');
   c.width = cols;
   c.height = rows * 2;
   const ctx = c.getContext('2d', { willReadFrequently: true });
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(img, 0, 0, cols, rows * 2);
+  if (rotate) {
+    // Ruota di 90° in senso orario: la sinistra dell'immagine va in alto
+    ctx.translate(cols, 0);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(img, 0, 0, rows * 2, cols);
+  } else {
+    ctx.drawImage(img, 0, 0, cols, rows * 2);
+  }
   const { data } = ctx.getImageData(0, 0, cols, rows * 2);
   const lum = k => ((data[k * 4] + data[k * 4 + 1] + data[k * 4 + 2]) / 765) * (data[k * 4 + 3] / 255);
   const values = new Float32Array(cols * rows);
@@ -57,9 +67,20 @@ function sample(img, cols, rows) {
   return { values, edge };
 }
 
-// gap: spazio libero al centro (es. per la cartella), in frazione del lato corto dello schermo.
-// Le due metà dell'immagine si spostano verso l'esterno per lasciarlo vuoto.
-function AsciiField({ src, cols, rows, ramp = '.:-=+*#%@', gap = 0, color = '#111', accent = '#0a84ff', className = '' }) {
+// cols / colsPortrait: caratteri per riga su schermi orizzontali / verticali (le righe si ricavano)
+// gap / gapPortrait: spazio libero al centro (es. per la cartella), in frazione del lato corto
+// dello schermo. Le due metà dell'immagine si allontanano per lasciarlo vuoto.
+function AsciiField({
+  src,
+  cols: colsLandscape,
+  colsPortrait = 60,
+  ramp = '.:-=+*#%@',
+  gap: gapLandscape = 0,
+  gapPortrait = gapLandscape,
+  color = '#111',
+  accent = '#0a84ff',
+  className = '',
+}) {
   const canvasRef = useRef();
 
   useEffect(() => {
@@ -68,25 +89,33 @@ function AsciiField({ src, cols, rows, ramp = '.:-=+*#%@', gap = 0, color = '#11
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const glyphs = [...ramp];
     const pointer = { x: -1e4, y: -1e4 };
-    let values = null;
-    let edge = null;
-    let aspect = 1;
+    let img = null;
+    let grid = null; // { vertical, cols, rows, values, edge }
     let size = { w: 0, h: 0 };
     let raf = 0;
     let start = 0;
     let cancelled = false;
 
-    // Colonna centrale e peso del movimento: 0 ai polsi, 1 sulla punta delle dita
-    const center = (cols - 1) / 2;
-    const tip = new Float32Array(cols);
-    for (let i = 0; i < cols; i++) tip[i] = Math.max(0, 1 - Math.abs(i - center) / (cols * 0.3)) ** 2;
+    // Ricampiona solo quando cambiano orientamento o numero di colonne
+    const ensureGrid = () => {
+      if (!img || !size.w) return;
+      const vertical = size.h > size.w;
+      const fw = vertical ? size.w : Math.max(size.w, MIN_WIDTH);
+      const cols = Math.min(vertical ? colsPortrait : colsLandscape, Math.round(fw / MIN_CELL));
+      if (grid && grid.vertical === vertical && grid.cols === cols) return;
+      const aspect = img.naturalWidth / img.naturalHeight || 1;
+      const rows = Math.round(vertical ? (cols * aspect) / CHAR_RATIO : cols / aspect / CHAR_RATIO);
+      grid = { vertical, cols, rows, aspect: vertical ? 1 / aspect : aspect, ...sample(img, cols, rows, vertical) };
+    };
 
     const draw = t => {
       const { w, h } = size;
       ctx.clearRect(0, 0, w, h);
-      if (!values) return;
+      if (!grid) return;
+      const { vertical, cols, rows, values, edge, aspect } = grid;
 
-      const fw = Math.max(w, MIN_WIDTH);
+      // In orizzontale l'immagine prende tutta la larghezza; in verticale pure, ed esce sopra e sotto
+      const fw = vertical ? w : Math.max(w, MIN_WIDTH);
       const fh = fw / aspect;
       const left = (w - fw) / 2;
       const top = (h - fh) / 2;
@@ -96,33 +125,41 @@ function AsciiField({ src, cols, rows, ramp = '.:-=+*#%@', gap = 0, color = '#11
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
 
-      const reach = reduce ? 0 : (0.5 - 0.5 * Math.cos((t * Math.PI * 2) / REACH_PERIOD)) * REACH_COLS;
-      // Colonne di cui allontanare le due metà; l'allungamento delle dita non entra nel buco
-      const open = Math.round((gap * Math.min(w, h)) / 2 / cw) + (gap ? REACH_COLS : 0);
+      // Asse lungo cui le due metà si cercano: colonne in orizzontale, righe in verticale
+      const n = vertical ? rows : cols;
+      const mid = (n - 1) / 2;
+      const gap = vertical ? gapPortrait : gapLandscape;
+      const reach = reduce ? 0 : (0.5 - 0.5 * Math.cos((t * Math.PI * 2) / REACH_PERIOD)) * REACH;
+      // Celle di cui allontanare le due metà; l'allungamento delle dita non entra nel buco
+      const open = Math.round((gap * Math.min(w, h)) / 2 / (vertical ? ch : cw)) + (gap ? REACH : 0);
       const tick = Math.floor(t * 12); // i caratteri casuali cambiano 12 volte al secondo
       const accentCells = [];
 
       ctx.fillStyle = color;
       for (let j = 0; j < rows; j++) {
+        const y = top + (j + 0.5) * ch;
+        if (y < -ch || y > h + ch) continue;
         for (let i = 0; i < cols; i++) {
-          // Metà allontanate dal centro, poi le dita avanzano verso di esso
-          const shift = Math.round(reach * tip[i]) - open;
-          const isLeft = i < center;
-          const si = isLeft ? i - shift : i + shift;
-          const inside = si >= 0 && si < cols && isLeft === si < center;
-          const v = inside ? values[j * cols + si] : 0;
-          if (!v) continue;
-          const e = edge[j * cols + si];
-
           const x = left + (i + 0.5) * cw;
-          const y = top + (j + 0.5) * ch;
+          if (x < -cw || x > w + cw) continue;
+
+          // Metà allontanate dal centro, poi le dita (0 ai polsi, 1 in punta) avanzano verso di esso
+          const a = vertical ? j : i;
+          const tip = Math.max(0, 1 - Math.abs(a - mid) / (n * 0.3)) ** 2;
+          const shift = Math.round(reach * tip) - open;
+          const first = a < mid;
+          const sa = first ? a - shift : a + shift;
+          if (sa < 0 || sa >= n || first !== sa < mid) continue;
+          const k = vertical ? sa * cols + i : j * cols + sa;
+          const v = values[k];
+          if (!v) continue;
+
           let level = v;
           let scramble = false;
 
           if (!reduce) {
             // Decodifica: prima vuoto, poi caratteri a caso, poi quello giusto
-            const u = Math.abs(i - center) / center;
-            const delay = (1 - u) * 0.9 + hash(i, j) * 0.4;
+            const delay = (1 - Math.abs(a - mid) / mid) * 0.9 + hash(i, j) * 0.4;
             if (t < delay) continue;
             scramble = t < delay + DECODE;
 
@@ -142,6 +179,7 @@ function AsciiField({ src, cols, rows, ramp = '.:-=+*#%@', gap = 0, color = '#11
             level += f * 0.4;
           }
 
+          const e = edge[k];
           const set = e === 1 ? TOP_GLYPHS : e === -1 ? BOTTOM_GLYPHS : glyphs;
           const g = scramble
             ? glyphs[Math.floor(hash(j, i, tick) * glyphs.length)]
@@ -161,6 +199,7 @@ function AsciiField({ src, cols, rows, ramp = '.:-=+*#%@', gap = 0, color = '#11
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ensureGrid();
       if (reduce) draw(Infinity);
     };
 
@@ -178,33 +217,39 @@ function AsciiField({ src, cols, rows, ramp = '.:-=+*#%@', gap = 0, color = '#11
     const onPointerLeave = () => {
       pointer.x = pointer.y = -1e4;
     };
+    // Col touch l'effetto segue il dito solo finché tocca lo schermo
+    const onPointerUp = e => {
+      if (e.pointerType !== 'mouse') onPointerLeave();
+    };
 
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
 
-    const img = new Image();
-    img.onload = () => {
+    const image = new Image();
+    image.onload = () => {
       if (cancelled) return;
-      aspect = img.naturalWidth / img.naturalHeight || 1;
-      ({ values, edge } = sample(img, cols, rows));
+      img = image;
+      ensureGrid();
       if (reduce) {
         draw(Infinity);
       } else {
         window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
         document.addEventListener('pointerleave', onPointerLeave);
         raf = requestAnimationFrame(loop);
       }
     };
-    img.src = src;
+    image.src = src;
 
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf);
       observer.disconnect();
       window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
       document.removeEventListener('pointerleave', onPointerLeave);
     };
-  }, [src, cols, rows, ramp, gap, color, accent]);
+  }, [src, colsLandscape, colsPortrait, ramp, gapLandscape, gapPortrait, color, accent]);
 
   return <canvas ref={canvasRef} className={`ascii-field ${className}`} aria-hidden="true" />;
 }
